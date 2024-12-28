@@ -16,7 +16,6 @@ const Sidebar = () => {
       console.log("New Chat Response:", response);
       fetchChats();
 
-      // Auto-select the newly created chat if the ID is returned
       if (response.chatId) {
         setCurrentChat({
           chatId: response.chatId,
@@ -38,7 +37,6 @@ const Sidebar = () => {
       console.log(response);
       fetchChats();
 
-      // Reset currentChat if the deleted chat was active
       if (currentChat?.chatId === id) {
         setCurrentChat(null);
       }

@@ -1,4 +1,5 @@
 use chrono::Utc;
+use log::debug;
 use reqwest::blocking::Client;
 use rusqlite::{params, Connection, Result};
 use serde::{Deserialize, Serialize};
@@ -6,6 +7,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize)]
 struct ChatRequest {
     message: String,
+    chatId: Option<i32>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -58,8 +60,11 @@ fn chat_with_ollama(message: String, chat_id: Option<i32>) -> Result<String, Str
         .build()
         .unwrap();
     let url = "http://127.0.0.1:8000/api/v1/chat";
+    // debug!("Chat ID: {:?}", chat_id);
+
     let request = ChatRequest {
         message: message.clone(),
+        chatId: chat_id,
     };
 
     match client.post(url).json(&request).send() {
@@ -80,7 +85,7 @@ fn chat_with_ollama(message: String, chat_id: Option<i32>) -> Result<String, Str
 #[tauri::command]
 fn create_new_chat(title: String) -> Result<i32, String> {
     let chat_id = save_chat_to_db(0, Some("".to_string()), "No response yet").unwrap();
-
+    debug!("New chat created");
     Ok(chat_id)
 }
 
@@ -135,12 +140,30 @@ fn initialize_database() -> Result<Connection> {
     Ok(conn)
 }
 
+// fn fetch_context(chat_id: i32) -> String {
+//     let conn = initialize_database().expect("Failed to initialize DB");
+//     let mut stmt = conn
+//         .prepare("SELECT sender_msg, ai_res FROM messages WHERE chat_id = ?1 ORDER BY id ASC")
+//         .unwrap();
+
+//     let message_iter = stmt
+//         .query_map([chat_id], |row| {
+//             let sender: String = row.get(0)?;
+//             let ai: String = row.get(1)?;
+//             Ok(format!("You: {}\nAI: {}", sender, ai))
+//         })
+//         .unwrap();
+
+//     let messages: Vec<String> = message_iter.map(|msg| msg.unwrap()).collect();
+//     messages.join("\n")
+// }
+
 fn save_chat_to_db(chat_id: i32, sender_msg: Option<String>, response: &str) -> Result<i32> {
     let conn = initialize_database()?;
     let timestamp = Utc::now().to_string();
 
     let new_chat_id = if chat_id == 0 {
-        // crete a new chat if chat_id is 0 (new chat)
+        // create a new chat if chat_id is 0 (new chat)
         let new_chat_title = "New Chat".to_string();
         conn.execute(
             "INSERT INTO chats (chat_title, created_at) VALUES (?1, ?2)",
